@@ -1,13 +1,15 @@
 import pyaudio
 import numpy as np
 import threading
-import random
 import sys
 from components.Modulator import PCMencode, PCMdecode, FMencode, FMdecode
+from components.Normalizer import normalize
+from components.Quantizer import AmplitudeQuantizer
+from components.Filter import butter_bandpass
 
 # Define the parameters
 fs: int = 44100  # Sampling frequency
-fc: int = 1000   # Carrier frequency
+fc: int = 20000  # Carrier frequency
 fm: int = 10     # Modulating frequency
 kf: int = 50     # Frequency sensitivity
 length = 10      # Length of bit send
@@ -58,8 +60,11 @@ def main():
     # Convert frames to numpy array
     signal = np.hstack(frames)
 
-    decoded_message = FMdecode(signal, fs, kf)
-    output = PCMdecode(decoded_message > 0, fs, fm)
+    filtered_signal = butter_bandpass(signal, 19000, 21000, fs)
+    decoded_signal = FMdecode(filtered_signal, fs, kf)
+    normalized_signal = normalize(decoded_signal)
+    quantized_signal = AmplitudeQuantizer(normalized_signal, 1, 0)
+    output = PCMdecode(quantized_signal > 0, fs, fm)
 
     equals = 0
     for i in range(0, length):

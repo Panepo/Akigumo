@@ -3,15 +3,26 @@ import numpy as np
 import threading
 import random
 import sys
-from components.Generator import SineGenerator
-from components.Analyzer import AnalyzeFrequency
-from components.Filter import butter_bandpass
-from components.Loader import configLoader
+from scipy.signal import butter, lfilter
+
+def configLoader(file_path):
+    parameters = {}
+    try:
+      with open(file_path, 'r') as file:
+          for line in file:
+              if line.strip() and not line.strip().startswith('#'):
+                key, value = line.strip().split(' = ')
+                parameters[key] = value
+      return parameters
+    except FileNotFoundError:
+      raise FileNotFoundError
+    except ValueError:
+      raise ValueError
 
 # Parameters
 fs = 44100  # Sampling rate
 duration = 1  # Duration in seconds
-tests = 10 # Number of tests
+tests = 10
 
 try:
   parameters = configLoader('FreqTest.ini')
@@ -25,6 +36,39 @@ except FileNotFoundError:
 except ValueError:
   input(f"Error: The value in config file has something wrong.")
   sys.exit(1)
+
+# sine wave generator
+def SineGenerator(frequency: int, fs: int, duration: int, channel = -1):
+  t = np.linspace(0, duration, int(fs * duration), endpoint=False)
+  signal = 0.5 * np.sin(2 * np.pi * frequency * t)
+
+  # Stereo signal
+  if (channel == 0):
+    stereo_signal = np.zeros((len(signal), 2))
+    stereo_signal[:, 0] = signal  # Left channel
+    stereo_signal[:, 1] = 0  # Right channel (muted)
+    return stereo_signal
+  elif (channel == 1):
+    stereo_signal = np.zeros((len(signal), 2))
+    stereo_signal[:, 0] = 0  # Left channel (muted)
+    stereo_signal[:, 1] = signal  # Right channel (muted)
+    return stereo_signal
+  else:
+    return signal
+
+def AnalyzeFrequency(signal, fs: int):
+  fft_result = np.fft.fft(signal)
+  freqs = np.fft.fftfreq(len(fft_result)) * fs
+  magnitudes = np.abs(fft_result)
+  return freqs, magnitudes
+
+def butter_bandpass(data, lowcut: int, highcut: int, fs: int, order=5):
+    nyquist = 0.5 * fs
+    low = lowcut / nyquist
+    high = highcut / nyquist
+    b, a = butter(order, [low, high], btype='band')
+    y = lfilter(b, a, data)
+    return y
 
 def main():
   leftPass = 0 # Number of pass left tests
