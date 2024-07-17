@@ -10,11 +10,13 @@ from components.Loader import configLoader
 
 # Parameters
 fs = 44100  # Sampling rate
-duration = 1  # Duration in seconds
 tests = 10 # Number of tests
 
 try:
   parameters = configLoader('FreqTest.ini')
+
+  # Duration in seconds
+  duration = float(parameters['duration'])
 
   # Generate random frequency
   freq_min = int(parameters['freq_min']) # Minimum frequency

@@ -4,6 +4,10 @@ import threading
 import random
 import sys
 from scipy.signal import butter, lfilter
+from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
+from comtypes import CLSCTX_ALL
+from ctypes import cast, POINTER
+import traceback
 
 def configLoader(file_path):
     parameters = {}
@@ -21,11 +25,13 @@ def configLoader(file_path):
 
 # Parameters
 fs = 44100  # Sampling rate
-duration = 1  # Duration in seconds
 tests = 10
 
 try:
   parameters = configLoader('FreqTest.ini')
+
+  # Duration in seconds
+  duration = float(parameters['duration'])
 
   # Generate random frequency
   freq_min = int(parameters['freq_min']) # Minimum frequency
@@ -36,6 +42,25 @@ except FileNotFoundError:
 except ValueError:
   input(f"Error: The value in config file has something wrong.")
   sys.exit(1)
+
+try:
+  # Get default audio device
+  speakers = AudioUtilities.GetSpeakers()
+  speakerInterface = speakers.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+  volumeSpeaker = cast(speakerInterface, POINTER(IAudioEndpointVolume))
+  volumeSpeaker.SetMute(False, None)
+  volumeSpeaker.SetMasterVolumeLevelScalar(1.0, None)
+
+  microphones = AudioUtilities.GetMicrophone()
+  micInterface = microphones.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+  volumeMic = cast(micInterface, POINTER(IAudioEndpointVolume))
+  volumeMic.SetMute(False, None)
+  volumeMic.SetMasterVolumeLevel(20.0, None)
+except Exception as e:
+    # Print the full traceback
+    traceback.print_exc()
+    input("Error: Audio devices has something wrong.")
+    sys.exit(1)
 
 # sine wave generator
 def SineGenerator(frequency: int, fs: int, duration: int, channel = -1):
