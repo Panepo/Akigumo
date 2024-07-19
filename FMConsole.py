@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from components.Modulator import PCMencode, PCMdecode, FMencode, FMdecode
 from components.Normalizer import normalize
-from components.Quantizer import AmplitudeQuantizer
+from components.Quantizer import AmplitudeQuantizer, TimeQuantizer
 from components.Filter import butter_bandpass
 
 # Define the parameters
@@ -22,7 +22,8 @@ filtered_signal = butter_bandpass(encode_message, 19000, 21000, fs)
 decoded_signal = FMdecode(encode_message, fs, kf)
 normalized_signal = normalize(decoded_signal)
 quantized_signal = AmplitudeQuantizer(normalized_signal, 1, 0)
-output = PCMdecode(quantized_signal > 0, fs, fm)
+quantized_signal2 = TimeQuantizer(quantized_signal, 1, 0, fs // fm)
+output = PCMdecode(quantized_signal2 > 0, fs, fm)
 
 # Print the input and output strings
 print(f"Input string: {input}")
@@ -50,7 +51,7 @@ plt.xlabel('Time [s]')
 plt.ylabel('Amplitude')
 
 plt.subplot(4, 1, 4)
-plt.plot(t[1:], quantized_signal)
+plt.plot(t[1:], quantized_signal2)
 plt.title('Normalized Message Signal')
 plt.xlabel('Time [s]')
 plt.ylabel('Amplitude')

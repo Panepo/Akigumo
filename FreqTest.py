@@ -10,7 +10,6 @@ from components.Loader import configLoader
 
 # Parameters
 fs = 44100  # Sampling rate
-tests = 10 # Number of tests
 
 try:
   parameters = configLoader('FreqTest.ini')
@@ -21,6 +20,10 @@ try:
   # Generate random frequency
   freq_min = int(parameters['freq_min']) # Minimum frequency
   freq_max = int(parameters['freq_max']) # Maximum frequency
+
+  # Number of tests
+  tests = int(parameters['tests']) * 2
+  critria = int(parameters['critria'])
 except FileNotFoundError:
   input(f"Error: The config file does not exist.")
   sys.exit(1)
@@ -77,7 +80,7 @@ def main():
     signal = np.hstack(frames)
 
     # Assign a band pass filter
-    filterd_signal = butter_bandpass(signal, freq_min, freq_max, fs)
+    filterd_signal = butter_bandpass(signal, frequency*0.9, frequency*1.1, fs)
 
     # Decode the signal
     freqs, magnitudes = AnalyzeFrequency(filterd_signal, fs)
@@ -99,7 +102,7 @@ def main():
 
 if __name__ == "__main__":
   leftPass, rightPass = main()
-  if (leftPass <= 3 or rightPass <= 3):
+  if (leftPass <= critria or rightPass <= critria):
     input(f"Test FAILED")
     sys.exit(1)
   else:
