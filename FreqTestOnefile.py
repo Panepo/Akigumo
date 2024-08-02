@@ -3,6 +3,7 @@ import numpy as np
 import threading
 import random
 import sys
+import time
 from scipy.signal import butter, lfilter
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 from comtypes import CLSCTX_ALL
@@ -39,11 +40,19 @@ try:
   # Number of tests
   tests = int(parameters['tests']) * 2
   critria = int(parameters['critria'])
+
+  # Frequency critria
+  freq_critria = int(parameters['freq_critria'])
 except FileNotFoundError:
   input(f"Error: The config file does not exist.")
   sys.exit(1)
 except ValueError:
   input(f"Error: The value in config file has something wrong.")
+  sys.exit(1)
+except Exception as e:
+  # Print the full traceback
+  traceback.print_exc()
+  input("Error: The config file has something wrong.")
   sys.exit(1)
 
 try:
@@ -58,12 +67,15 @@ try:
   micInterface = microphones.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
   volumeMic = cast(micInterface, POINTER(IAudioEndpointVolume))
   volumeMic.SetMute(False, None)
-  volumeMic.SetMasterVolumeLevel(20.0, None)
+  volumeMic.SetMasterVolumeLevelScalar(1.0, None)
+except IOError:
+  input("No default audio device available.")
+  sys.exit(1)
 except Exception as e:
-    # Print the full traceback
-    traceback.print_exc()
-    input("Error: Audio devices has something wrong.")
-    sys.exit(1)
+  # Print the full traceback
+  traceback.print_exc()
+  input("Error: Audio devices has something wrong.")
+  sys.exit(1)
 
 # sine wave generator
 def SineGenerator(frequency: int, fs: int, duration: int, channel = -1):
@@ -113,7 +125,7 @@ def main():
     if (num < tests / 2):
       stereo_signal = SineGenerator(frequency, fs, duration, 0) # Left channel and right channel muted
     else:
-      stereo_signal = SineGenerator(frequency, fs, duration, 0) # Right channel and left channel muted
+      stereo_signal = SineGenerator(frequency, fs, duration, 1) # Right channel and left channel muted
 
     transmitter = p.open(format=pyaudio.paFloat32, channels=2, rate=fs, output=True)
     receiver = p.open(format=pyaudio.paInt16, channels=1, rate=fs, input=True, frames_per_buffer=1024)
@@ -144,20 +156,21 @@ def main():
     record_thread.join()
 
     # Convert frames to numpy array
-    signal = np.hstack(frames)
+    received_signal = np.hstack(frames)
 
     # Assign a band pass filter
-    filterd_signal = butter_bandpass(signal, frequency*0.9, frequency*1.1, fs)
+    filterd_signal = butter_bandpass(received_signal, frequency - freq_critria, frequency + freq_critria, fs)
 
     # Decode the signal
     freqs, magnitudes = AnalyzeFrequency(filterd_signal, fs)
     sorted_indices = np.argsort(magnitudes)[::-1]
     peak_freq = abs(freqs[sorted_indices[0]])
 
+    print("=============================================")
     print(f"Signal frequency: {frequency} Hz")
     print(f"Detected peak frequency: {peak_freq} Hz")
 
-    if (peak_freq <= frequency * 1.025 and peak_freq >= frequency * 0.975):
+    if (peak_freq <= frequency + freq_critria and peak_freq >= frequency - freq_critria):
       if (num < tests / 2):
         leftPass = leftPass + 1
       else:
@@ -169,9 +182,9 @@ def main():
 
 if __name__ == "__main__":
   leftPass, rightPass = main()
-  if (leftPass <= critria or rightPass <= critria):
-    input(f"Test FAILED")
-    sys.exit(1)
-  else:
+  if (leftPass >= critria and rightPass >= critria):
     print(f"Test PASSED")
     sys.exit(0)
+  else:
+    input(f"Test FAILED")
+    sys.exit(1)
