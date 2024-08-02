@@ -8,15 +8,20 @@ def setDevice():
     # Get default audio device
     speakers = AudioUtilities.GetSpeakers()
     speakerInterface = speakers.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-    volumeSpeaker = cast(speakerInterface, POINTER(IAudioEndpointVolume))
-    #volumeSpeaker.SetMute(False, None)
+    volumeSpeaker = speakerInterface.QueryInterface(IAudioEndpointVolume)
+    volumeSpeaker.SetMute(False, None)
     volumeSpeaker.SetMasterVolumeLevelScalar(1.0, None)
 
     microphones = AudioUtilities.GetMicrophone()
     micInterface = microphones.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-    volumeMic = cast(micInterface, POINTER(IAudioEndpointVolume))
+    volumeMic = micInterface.QueryInterface(IAudioEndpointVolume)
+    _, max_volume, _ = volumeMic.GetVolumeRange()
     volumeMic.SetMute(False, None)
-    volumeMic.SetMasterVolumeLevelScalar(1.0, None)
+
+    if (max_volume >= 25):
+      volumeMic.SetMasterVolumeLevel(25, None)
+    else:
+      volumeMic.SetMasterVolumeLevelScalar(1.0, None)
   except IOError:
     input("No default audio device available.")
   except Exception as e:
