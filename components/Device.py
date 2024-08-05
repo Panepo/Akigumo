@@ -3,20 +3,20 @@ from comtypes import CLSCTX_ALL
 from ctypes import cast, POINTER
 import traceback
 
-def setDevice():
+def setDevice(setMute: bool):
   try:
     # Get default audio device
     speakers = AudioUtilities.GetSpeakers()
     speakerInterface = speakers.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
     volumeSpeaker = speakerInterface.QueryInterface(IAudioEndpointVolume)
-    volumeSpeaker.SetMute(False, None)
+    if (setMute): volumeSpeaker.SetMute(False, None)
     volumeSpeaker.SetMasterVolumeLevelScalar(1.0, None)
 
     microphones = AudioUtilities.GetMicrophone()
     micInterface = microphones.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
     volumeMic = micInterface.QueryInterface(IAudioEndpointVolume)
     _, max_volume, _ = volumeMic.GetVolumeRange()
-    volumeMic.SetMute(False, None)
+    if (setMute): volumeMic.SetMute(False, None)
 
     if (max_volume >= 25):
       volumeMic.SetMasterVolumeLevel(25, None)

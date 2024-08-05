@@ -1,9 +1,10 @@
 import numpy as np
 
 # sine wave generator
-def SineGenerator(frequency: int, fs: int, duration: int, channel = -1):
+def SineGenerator(power: float, frequency: int, fs: int, duration: int):
   t = np.linspace(0, duration, int(fs * duration), endpoint=False)
-  signal = 0.5 * np.sin(2 * np.pi * frequency * t)
+  signal = power * np.sin(2 * np.pi * frequency * t)
+  return signal
 
   # Stereo signal
   if (channel == 0):

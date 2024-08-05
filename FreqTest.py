@@ -3,12 +3,12 @@ import numpy as np
 import threading
 import random
 import sys
+import math
 from components.Generator import SineGenerator
-from components.Analyzer import AnalyzeFrequency
+from components.Analyzer import AnalyzeSignal
 from components.Filter import butter_bandpass
 from components.Loader import configLoader
 from components.Device import setDevice
-from scipy.signal import find_peaks
 
 # Parameters
 fs = 44100  # Sampling rate
@@ -29,6 +29,9 @@ try:
 
   # Frequency critria
   freq_critria = int(parameters['freq_critria'])
+
+  # Power critria
+  power_critria = int(parameters['power_critria'])
 except FileNotFoundError:
   input(f"Error: The config file does not exist.")
   sys.exit(1)
@@ -36,7 +39,7 @@ except ValueError:
   input(f"Error: The value in config file has something wrong.")
   sys.exit(1)
 
-setDevice()
+setDevice(False)
 
 def main():
   leftPass = 0 # Number of pass left tests
@@ -47,13 +50,17 @@ def main():
 
   # Begin tests
   for num in range(0, tests):
-    frequency = random.randint(freq_min, freq_max)  # Frequency of the signal
+    freq = random.randint(freq_min, freq_max)  # Frequency of the signal 1
+    sine = SineGenerator(1, freq, fs, duration)
 
-    # Create a stereo signal with the right channel muted
+    # Create a stereo signal
+    stereo_signal = np.zeros((len(sine), 2))
     if (num < tests / 2):
-      stereo_signal = SineGenerator(frequency, fs, duration, 0) # Left channel and right channel muted
+      stereo_signal[:, 0] = sine  # Left channel
+      stereo_signal[:, 1] = 0  # Right channel (muted)
     else:
-      stereo_signal = SineGenerator(frequency, fs, duration, 1) # Right channel and left channel muted
+      stereo_signal[:, 0] = 0  # Left channel (muted)
+      stereo_signal[:, 1] = sine  # Right channel
 
     transmitter = p.open(format=pyaudio.paFloat32, channels=2, rate=fs, output=True)
     receiver = p.open(format=pyaudio.paInt16, channels=1, rate=fs, input=True, frames_per_buffer=1024)
@@ -66,8 +73,8 @@ def main():
 
     def record_sound():
       for _ in range(0, int(fs / 1024 * duration)):
-          data = receiver.read(1024)
-          frames.append(np.frombuffer(data, dtype=np.int16))
+        data = receiver.read(1024)
+        frames.append(np.frombuffer(data, dtype=np.int16))
 
       receiver.stop_stream()
       receiver.close()
@@ -90,25 +97,25 @@ def main():
     filterd_signal = butter_bandpass(received_signal, freq_min, freq_max, fs)
 
     # Decode the signal
-    freqs, magnitudes = AnalyzeFrequency(filterd_signal, fs)
-    sorted_indices = np.argsort(magnitudes)[::-1]
-    peak_freq = abs(freqs[sorted_indices[0]])
+    peak_freqs, peak_powers = AnalyzeSignal(filterd_signal, fs)
 
     print("=============================================")
     if (num < tests / 2):
-      print(f"Left signal frequency: {frequency} Hz")
+      print(f"Left signal frequency: {freq} Hz")
     else:
-      print(f"Right signal frequency: {frequency} Hz")
+      print(f"Right signal frequency: {freq} Hz")
 
-    if (peak_freq <= frequency + freq_critria and peak_freq >= frequency - freq_critria):
-      if (num < tests / 2):
-        leftPass = leftPass + 1
+    if (peak_freqs[0] <= freq + freq_critria and peak_freqs[0] >= freq - freq_critria):
+      if (peak_powers[0] >= power_critria):
+        print(f"Detected Peak Frequency: {math.floor(peak_freqs[0])} Hz, Power: {math.floor(peak_powers[0])} PASS")
+        if (num < tests / 2):
+          leftPass = leftPass + 1
+        else:
+          rightPass = rightPass + 1
       else:
-        rightPass = rightPass + 1
-
-      print(f"Detected peak frequency: {peak_freq} Hz PASS")
+        print(f"Detected Peak Frequency: {math.floor(peak_freqs[0])} Hz, Power: {math.floor(peak_powers[0])}")
     else:
-      print(f"Detected peak frequency: {peak_freq} Hz")
+      print(f"Detected Peak Frequency: {math.floor(peak_freqs[0])} Hz, Power: {math.floor(peak_powers[0])}")
 
   p.terminate()
   print(f"Total {tests} tests: left channel {leftPass} pass and right channel {rightPass} pass")
