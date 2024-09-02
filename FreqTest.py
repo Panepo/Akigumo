@@ -8,7 +8,7 @@ from components.Generator import SineGenerator
 from components.Analyzer import AnalyzeSignal
 from components.Filter import butter_bandpass
 from components.Loader import configLoader
-from components.Device import setDevice, ListenSound, PlayAndListenSound
+from components.Device import setDevice, ListenSound
 
 # Parameters
 fs = 44100  # Sampling rate
@@ -40,8 +40,6 @@ except FileNotFoundError:
 except ValueError:
   input(f"Error: The value in config file has something wrong.")
   sys.exit(1)
-
-setDevice(False)
 
 def main():
   leftPass = 0 # Number of pass left tests
@@ -135,10 +133,15 @@ def main():
   return leftPass, rightPass
 
 if __name__ == "__main__":
+  setDevice(True)
   leftPass, rightPass = main()
   if (leftPass >= critria and rightPass >= critria):
     print(f"Test PASSED")
     sys.exit(0)
   else:
-    input(f"Test FAILED")
-    sys.exit(1)
+    if (leftPass >= critria and rightPass >= critria):
+      print(f"Test PASSED")
+      sys.exit(0)
+    else:
+      input(f"Test FAILED")
+      sys.exit(1)

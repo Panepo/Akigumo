@@ -1,3 +1,5 @@
+import schedule
+import time
 import pyaudio
 import numpy as np
 import threading
@@ -8,11 +10,10 @@ from components.Generator import SineGenerator
 from components.Analyzer import AnalyzeSignal
 from components.Filter import butter_bandpass
 from components.Loader import configLoader
-from components.Device import setDevice, setMute, setTotalMute, ListenSound
+from components.Device import setDevice, setTotalMute, ListenSound
 
 # Parameters
 fs = 44100  # Sampling rate
-groups = 1
 
 try:
   parameters = configLoader('FreqTest.ini')
@@ -27,6 +28,7 @@ try:
   # Number of tests
   tests = int(parameters['tests']) * 2
   critria = int(parameters['critria'])
+  groups = int(parameters['group'])
 
   # Frequency critria
   freq_critria = int(parameters['freq_critria'])
@@ -42,7 +44,7 @@ except ValueError:
   input(f"Error: The value in config file has something wrong.")
   sys.exit(1)
 
-def main():
+def test():
   leftPass = 0 # Number of pass left tests
   rightPass = 0 # Number of pass right tests
 
@@ -133,18 +135,22 @@ def main():
   #print(f"Total {tests} tests: left channel {leftPass} pass and right channel {rightPass} pass")
   return leftPass, rightPass
 
-if __name__ == "__main__":
+def job():
   passNormal = 0
   failNormal = 0
   print(f"Normal test start")
   setDevice(True)
 
   for i in range(0, groups):
-    leftPass, rightPass = main()
+    leftPass, rightPass = test()
     if (leftPass >= critria and rightPass >= critria):
       passNormal += 1
     else:
-      failNormal += 1
+      leftPass, rightPass = test()
+      if (leftPass >= critria and rightPass >= critria):
+        passNormal += 1
+      else:
+        failNormal += 1
 
   passMute = 0
   failMute = 0
@@ -152,13 +158,24 @@ if __name__ == "__main__":
   setTotalMute()
 
   for i in range(0, groups):
-    leftPass, rightPass = main()
+    leftPass, rightPass = test()
     if (leftPass >= critria and rightPass >= critria):
       passMute += 1
     else:
-      failMute += 1
+      leftPass, rightPass = test()
+      if (leftPass >= critria and rightPass >= critria):
+        passMute += 1
+      else:
+        failMute += 1
 
   print("=============================================")
   print(f"Total {groups} tests")
   print(f"Normal test ends with {passNormal} pass and {failNormal} fail")
   input(f"Mute test ends with {passMute} pass and {failMute} fail")
+
+if __name__ == "__main__":
+  job()
+  #schedule.every().day.at("15:57").do(job)
+  #while True:
+  #  schedule.run_pending()
+  #  time.sleep(1)

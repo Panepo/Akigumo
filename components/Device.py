@@ -4,7 +4,6 @@ import threading
 import queue
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 from comtypes import CLSCTX_ALL
-from ctypes import cast, POINTER
 import traceback
 
 def setDevice(setMute: bool):
